@@ -1,4 +1,4 @@
-%{$method_definition.return_type}%_php::%{$method_name}%(%{function_arguments_string($method_definition, false)}%)%{if $method_definition.constant}%const%{/if}%
+%{$method_definition.return_type}% %{$class_name}%_php::%{$method_name}%(%{function_arguments_string($method_definition, false)}%)%{if $method_definition.constant}%const%{/if}%
 {
     #ifdef USE_WXPHP_DEBUG
     php_printf("Invoking virtual %{$class_name}%::%{$method_name}%\n");
