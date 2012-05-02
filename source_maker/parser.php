@@ -383,6 +383,7 @@ foreach($defClassGroups as $file_name => $class_list)
 			
 		$class_methods = $defIni[$class_name];
 		
+		$smarty->assign('class_name', $class_name);
 		$classes_header_code .= $smarty->fetch('classes_header.tpl');
 	}
 	
