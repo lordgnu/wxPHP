@@ -78,7 +78,7 @@ if (PHP_WXWIDGETS != "no") {
 		ADD_FLAG("LDFLAGS_WXWIDGETS", "/INCREMENTAL:NO");
 		ADD_FLAG("LDFLAGS_WXWIDGETS", "/SUBSYSTEM:WINDOWS");
 		
-		EXTENSION("wxwidgets", "app.cpp references.cpp <?=$source_files?> functions.cpp wxwidgets.cpp");
+		EXTENSION("wxwidgets", "app.cpp references.cpp %{$source_files}% functions.cpp wxwidgets.cpp");
 		
 	}
 	else {
