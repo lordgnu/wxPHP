@@ -1,0 +1,37 @@
+Short term TODO
+==============================
+
+* (FIXED) Fix segmentation bug that occurs on shutdown.
+
+* (FIXED) Check why PHP Segfaults when loading the library from the php.ini while
+  loading it with dl function works as expected.
+
+* (FIXED) fix xml_parser not using <array>[]</array> on argument types 
+
+* (FIXED) Methods returning references to its own object return null,
+  this was fixed before, but after introducing wxPHPObjectReferences
+  it break up.
+
+* (ALMOST) Update config.w32 and configd.w32 to use new wxWidgets 2.9.x
+
+* Compilation testing and troubleshooting on windows
+
+* Compilation testing and troubleshooting on mac
+
+* Implement __set to write to internal wxWidgets class properties.
+
+* Implement compare_objects handler for wxWidget classes that implement
+  operator== etc...
+  
+* Fix strange behaviour on wxOSX where the application receives mouse
+  events correctly but not keyboard ones. I suspect of the way
+  we are initliazing the wxPHP library to run applications.
+  
+  
+Long term TODO
+==============================
+
+* Approach a more object oriended style for the source maker
+
+* Develop a modules architecture in order to use the source maker to
+  generate the PHP bindings for any library with doxygen documentation.
