@@ -14,12 +14,14 @@
  * 
 */
 
-include("include/init_smarty.php");
 include("include/functions.php");
 include("include/function_generation.php");
 include("include/class_header_generation.php");
 include("include/class_source_generation.php");
 include("include/class_virtual_source_generation.php");
+
+// Init Smarty
+include("include/init_smarty.php");
 
 //Disable unnecesary php warnings
 error_reporting(E_ALL ^ E_NOTICE ^ E_WARNING);
@@ -260,6 +262,9 @@ foreach($defClassGroups as $file_name => $class_list)
 	//Strip group_class_
 	$file_name = str_replace("group_class_", "", $file_name);
 	
+	// Assign file_name for smarty
+	$smarty->assignByRef('file_name', $file_name);
+	
 	echo "Generating $file_name.cpp ...\n";
 	
 	//Add neccesary headers to classes implementation file
@@ -272,7 +277,7 @@ foreach($defClassGroups as $file_name => $class_list)
 		// Check to make sure this is a class in our definitions array
 		if(!isset($defIni[$class_name])) 
 		{
-			echo " - Skipping {$class_name}...\n";
+			//echo " - Skipping {$class_name}...\n";
 			continue;
 		}
 		
@@ -285,20 +290,19 @@ foreach($defClassGroups as $file_name => $class_list)
 		// Assign the class methods array for Smarty
 		$smarty->assign('class_methods', $class_methods);
 		
-		/*
-		ob_start();
-		include("templates/classes_source.php");
-		$classes_source_code .= ob_get_contents();
-		ob_end_clean();
-		*/
-		$classes_source_code .= $smarty->fetch('classes_source.cpp.tpl');
+		// Use Smarty->fetch to get compiled template
+		$classes_source_code .= $smarty->fetch('classes_source.tpl');
 		
-		foreach($class_methods as $method_name=>$method_definitions)
+		foreach($class_methods as $method_name => $method_definitions)
 		{
 			//Skip _implements (inheritance) list
 			if($method_name{0} == "_")
 				continue;
-				
+			
+			// Assign the method name and definitions for Smarty
+			$smarty->assign('method_name', $method_name);
+			$smarty->assignByRef('method_definitions', $method_definitions);
+			
 			//On the documentation the width and height seems to be optional but not on gtk :S
 			//TODO: modify this directly on full_classes_set.json and classes.json
 			if($class_name == "wxIcon" && $method_name == "LoadFile")
@@ -327,40 +331,31 @@ foreach($defClassGroups as $file_name => $class_list)
 					"".strpos($method_name, "On")."" == "0"
 				)
 				{
-					ob_start();
-					include("templates/classes_source_virtual_method.php");
-					$classes_source_code .= ob_get_contents();
-					ob_end_clean();
+					$smarty->assign('method_definition', $method_definition);
+					$classes_source_code .= $smarty->fetch('classes_source_virtual_method.tpl');
 				}
 			}
 			
-			$custom_method_template = "templates/class_methods/" . strtolower($class_name) . "_" . strtolower($method_name) . ".php";
+			// Check for custom method template
+			$smarty_custom_method_template = 'class_methods/' . strtolower($class_name) . "_" . strtolower($method_name) . '.tpl';
 			
-			if(file_exists($custom_method_template))
+			if($smarty->templateExists($smarty_custom_method_template))
 			{
-				ob_start();
-				include($custom_method_template);
-				$classes_source_code .= ob_get_contents();
-				ob_end_clean();
+				echo " + Using custom method template for {$class_name}::{$method_name}\n";
+				$classes_source_code .= $smarty->fetch($smarty_custom_method_template);
 				continue;
 			}
 			elseif($class_name == $method_name)
 			{
-				ob_start();
-				include("templates/classes_source_constructor.php");
+				$classes_source_code .= $smarty->fetch('classes_source_constructor.tpl');
 				if(isset($defClassProperties[$class_name]))
-					include("templates/classes_get.php");
-				$classes_source_code .= ob_get_contents();
-				ob_end_clean();
+					$classes_source_code .= $smarty->fetch('classes_get.tpl');
 			}
 			elseif(!$method_definitions[0]["protected"] && !$method_definitions[0]["pure_virtual"] &&
 					"".strpos($method_name, "On")."" != "0"
 			)
 			{
-				ob_start();
-				include("templates/classes_source_method.php");
-				$classes_source_code .= ob_get_contents();
-				ob_end_clean();
+				$classes_source_code .= $smarty->fetch('classes_source_method.tpl');
 			}
 		}
 	}
@@ -388,10 +383,7 @@ foreach($defClassGroups as $file_name => $class_list)
 			
 		$class_methods = $defIni[$class_name];
 		
-		ob_start();
-		include("templates/classes_header.php");
-		$classes_header_code .= ob_get_contents();
-		ob_end_clean();
+		$classes_header_code .= $smarty->fetch('classes_header.tpl');
 	}
 	
 	$classes_header_code .= "#endif //WXPHP_".strtoupper($file_name)."_H_GUARD\n";
@@ -400,44 +392,42 @@ foreach($defClassGroups as $file_name => $class_list)
 
 } //Ends foreach($defClassGroups as $file_name => $class_list)
 
-
 //Generate functions.h prototypes and functions.cpp code
 $function_prototypes = "";
 $functions = "";
+$smarty->assignByRef('function_prototypes', $function_prototypes);
+$smarty->assignByRef('functions', $functions);
+
 foreach($defFunctions as $function_name=>$function_data)
 {
+	// Assign Smarty variables
+	$smarty->assignByRef('function_name', $function_name);
+	$smarty->assignByRef('function_data', $function_data);
+	
 	//Generate function protytpes code
 	$function_prototypes .= "PHP_FUNCTION(php_{$function_name});\n\n";
 	
-	//Generate functions code
-	$function_template = "templates/functions/".strtolower($function_name).".php";
+	//Generate functions code;
+	$smarty_function_template = "functions/".strtolower($function_name).".tpl";
 	
-	ob_start();
-	if(file_exists($function_template))
+	if($smarty->templateExists($smarty_function_template))
 	{
-		include($function_template);
+		echo " + Using custom function template for: {$function_name}\n";
+		$functions .= $smarty->fetch($smarty_function_template);
 	}
 	else
 	{
-		include("templates/function.php");
+		$functions .= $smarty->fetch('function.tpl');
 	}
-	$functions .= ob_get_contents();
-	ob_end_clean();
 }
 
 echo "Generating functions.h\n";
-ob_start();
-	include("source_templates/functions.h");
-	$functions_h_source .= ob_get_contents();
-ob_end_clean();
+$functions_h_source .= $smarty->fetch('functions.h.tpl');
 
 file_put_contents("functions.h", $functions_h_source);
 
 echo "Generating functions.cpp\n";
-ob_start();
-	include("source_templates/functions.cpp");
-	$functions_cpp_source .= ob_get_contents();
-ob_end_clean();
+$functions_cpp_source .= $smarty->fetch('functions.cpp.tpl');
 
 file_put_contents("functions.cpp", $functions_cpp_source);
 
@@ -697,29 +687,27 @@ $functions = "";
 $functions_table = "";
 foreach($defFunctions as $function_name=>$function_data)
 {
-	$function_template = "templates/functions/".strtolower($function_name).".php";
-	
-	ob_start();
-	if(file_exists($function_template))
+	$smarty_function_template = "functions/".strtolower($function_name).".tpl";
+	if ($smarty->templateExists($smarty_function_template)) 
 	{
-		include($function_template);
-	}
-	else
+		$functions .= $smarty->fetch($smarty_function_template);
+	} 
+	else 
 	{
-		include("templates/function.php");
+		$functions .= $smarty->fetch('function.tpl');
 	}
-	$functions .= ob_get_contents();
-	ob_end_clean();
-	
+		
 	//Write to functions table entry
 	$functions_table .= "\tPHP_FALIAS($function_name, php_$function_name, NULL)\n";
 }
 
 //Generate wxwidgets.cpp
-ob_start();
-	include("source_templates/wxwidgets.cpp");
-	$wxwidgets_source .= ob_get_contents();
-ob_end_clean();
+$smarty->assign('entries', $entries);
+$smarty->assign('functions_table', $functions_table);
+$smarty->assign('object_constants', $object_constants);
+$smarty->assign('classes', $classes);
+
+$wxwidgets_source .= $smarty->fetch('wxwidgets.cpp.tpl');
 
 file_put_contents("wxwidgets.cpp", $wxwidgets_source);
 
@@ -758,7 +746,7 @@ foreach($defIni as $className => $classDef)
 		
 }
 
-$old = file_get_contents("source_templates/php_wxwidgets.h");
+$old = $smarty->fetch('php_wxwidgets.h.tpl');
 
 if(preg_match("/(.*?\/\/ entries --->)[^<]+(\/\/ <--- entries[^§]+)/sm", $old, $matches))
 {
@@ -780,7 +768,7 @@ foreach($defIncludes as $file_name => $value)
 	$output .= "#include <$file_name>\n";
 }
 
-$old = file_get_contents("source_templates/common.h");
+$old = $smarty->fetch('common.h.tpl');
 
 if(preg_match("/(.*?\/\/ entries --->)[^<]+(\/\/ <--- entries[^§]+)/sm", $old, $matches))
 {
@@ -803,23 +791,13 @@ foreach($defClassGroups as $group_name=>$class_list)
 
 $source_files = trim($source_files);
 
-$unix_config = "";
-ob_start();
-	include("config_templates/config.m4");
-	$unix_config .= ob_get_contents();
-ob_end_clean();
-
+// Unix Config File
+$smarty->assign('source_files', $source_files);
+$unix_config .= $smarty->fetch('config.m4.tpl');
 file_put_contents("config.m4", $unix_config);
 
-$win_config = "";
-ob_start();
-	include("config_templates/config.w32");
-	$win_config .= ob_get_contents();
-ob_end_clean();
-
+// Windows Config
+$win_config = $smarty->fetch('config.w32.tpl');
 file_put_contents("config.w32", $win_config);
 
-
 die("Done!\n");
-
-?>
