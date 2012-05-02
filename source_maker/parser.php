@@ -14,6 +14,7 @@
  * 
 */
 
+include("include/init_smarty.php");
 include("include/functions.php");
 include("include/function_generation.php");
 include("include/class_header_generation.php");
@@ -49,6 +50,17 @@ $defClassProperties = array();
 
 //Initialize class groups
 $defClassGroups = array();
+
+// Assign variables to smarty by reference
+$smarty->assignByRef('defIncludes', $defIncludes);
+$smarty->assignByRef('defEnums', $defEnums);
+$smarty->assignByRef('defConsts', $defConsts);
+$smarty->assignByRef('defGlobals', $defGlobals);
+$smarty->assignByRef('defTypedef', $defTypedef);
+$smarty->assignByRef('defFunctions', $defFunctions);
+$smarty->assignByRef('defIni', $defIni);
+$smarty->assignByRef('defClassProperties', $defClassProperties);
+$smarty->assignByRef('defClassGroups', $defClassGroups);
 
 //Load includes parsed by the xml_parser
 if(file_exists("dumps/includes.json"))
@@ -220,16 +232,28 @@ remove_methods_implementing_unhandled_arguments($defIni);
 
 
 //Merges method overloads from parents to child classes
+//TODO: Try compile with this uncommented now that linker errors are solved
 //classes_method_merger($defIni); //This is provoking compilation errors on some classes
 
 //Generate header files of class groups
 $header_files = "";
+
+// Assign to smarty by reference
+$smarty->assignByRef('header_files', $header_files);
+
 foreach($defClassGroups as $header_name => $v)
 {
 	$header_name = str_replace("group_class_", "", $header_name);
 	$header_files .= "#include \"$header_name.h\"\n";
 }
-	
+
+/*******************************************************************************************************
+ * Here starts the real fun! - Need to replace with Smarty templates one by one
+ * TODO: classes_source
+ * TODO: classes_source_virtual_method
+ * 
+ ******************************************************************************************************/
+
 //Generate classes source and header files
 foreach($defClassGroups as $file_name => $class_list)
 {
@@ -245,15 +269,29 @@ foreach($defClassGroups as $file_name => $class_list)
 	
 	foreach($class_list as $class_name)
 	{
-		if(!isset($defIni[$class_name]))
+		// Check to make sure this is a class in our definitions array
+		if(!isset($defIni[$class_name])) 
+		{
+			echo " - Skipping {$class_name}...\n";
 			continue;
-			
+		}
+		
+		// Assign the class name for Smarty
+		$smarty->assign('class_name', $class_name);
+		
+		// Get the class methods
 		$class_methods = $defIni[$class_name];
-			
+		
+		// Assign the class methods array for Smarty
+		$smarty->assign('class_methods', $class_methods);
+		
+		/*
 		ob_start();
 		include("templates/classes_source.php");
 		$classes_source_code .= ob_get_contents();
 		ob_end_clean();
+		*/
+		$classes_source_code .= $smarty->fetch('classes_source.cpp.tpl');
 		
 		foreach($class_methods as $method_name=>$method_definitions)
 		{
